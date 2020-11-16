@@ -34,7 +34,7 @@ mod account;
 mod storage;
 pub use account::Account;
 use anyhow::{anyhow, Context, Result};
-use bee_common_ext::packable::Packable;
+use bee_common::packable::Packable;
 use bee_signing_ext::{
     binary::{ed25519, BIP32Path},
     Signature, Signer, Verifier,
