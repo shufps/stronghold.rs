@@ -42,14 +42,20 @@ use bee_signing_ext::{
 pub use engine::crypto::Error as CryptoError;
 pub use engine::snapshot::Error as SnapshotError;
 pub use engine::vault::Error as VaultError;
-use iota::message::prelude::{Ed25519Signature, ReferenceUnlock, SignatureUnlock, TransactionEssence, UnlockBlock};
+use iota::message::prelude::{
+    Ed25519Signature, Input, ReferenceUnlock, SignatureUnlock, TransactionEssence, UnlockBlock,
+};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::{collections::BTreeMap, path::Path, str};
+use std::{
+    collections::{BTreeMap, HashMap},
+    path::Path,
+    str,
+};
 use storage::Storage;
 pub use storage::{Base64Decodable, RecordHint, RecordId};
 
@@ -968,7 +974,7 @@ impl Stronghold {
         &self,
         account_id: &[u8; 32],
         essence: &TransactionEssence,
-        paths: &[BIP32Path],
+        address_index_recorders: &mut [AddressIndexRecorder],
     ) -> Result<Vec<UnlockBlock>> {
         let mut serialized_essence = Vec::new();
         essence
@@ -978,18 +984,21 @@ impl Stronghold {
         let account = self.account_get_by_id(account_id)?;
         let seed = account.get_seed();
         let mut unlock_blocks = vec![];
-        let mut last_index = (None, -1);
-        let seed = account.get_seed();
-        for path in paths.iter() {
+        let mut current_block_index: usize = 0;
+        let mut signature_indexes = HashMap::<usize, usize>::new();
+        address_index_recorders.sort_by(|a, b| a.input.cmp(&b.input));
+
+        for recorder in address_index_recorders.iter() {
             // Check if current path is same as previous path
-            if last_index.0 == Some(path) {
-                // If so, add a reference unlock block
+            // If so, add a reference unlock block
+            if let Some(block_index) = signature_indexes.get(&recorder.address_index) {
                 unlock_blocks.push(UnlockBlock::Reference(
-                    ReferenceUnlock::new(last_index.1 as u16).map_err(|e| anyhow::anyhow!(e.to_string()))?,
+                    ReferenceUnlock::new(*block_index as u16)
+                        .map_err(|e| anyhow::anyhow!("failed to create reference unlock block"))?,
                 ));
             } else {
                 // If not, we should create a signature unlock block
-                let private_key = ed25519::Ed25519PrivateKey::generate_from_seed(&seed, path)
+                let private_key = ed25519::Ed25519PrivateKey::generate_from_seed(&seed, &recorder.address_path)
                     .map_err(|_| anyhow::anyhow!("invalid parameter: seed inputs"))?;
                 let public_key = private_key.generate_public_key().to_bytes();
                 // The block should sign the entire transaction essence part of the transaction payload
@@ -997,13 +1006,25 @@ impl Stronghold {
                 unlock_blocks.push(UnlockBlock::Signature(SignatureUnlock::Ed25519(Ed25519Signature::new(
                     public_key, signature,
                 ))));
+                signature_indexes.insert(recorder.address_index, current_block_index);
 
-                // Update last signature block path and index
-                last_index = (Some(path), (unlock_blocks.len() - 1) as isize);
+                // Update current block index
+                current_block_index += 1;
             }
         }
         Ok(unlock_blocks)
     }
+}
+
+/// A record matching an Input with its address.
+#[derive(Debug)]
+pub struct AddressIndexRecorder {
+    /// the input
+    pub input: Input,
+    /// address index
+    pub address_index: usize,
+    /// address bip32 path
+    pub address_path: BIP32Path,
 }
 
 #[cfg(test)]

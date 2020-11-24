@@ -10,6 +10,10 @@
 // See the License for the specific language governing permissions and limitations under the License.
 
 use bech32::ToBase32;
+use blake2::{
+    digest::{Update, VariableOutput},
+    VarBlake2b,
+};
 use hmac::Hmac;
 use unicode_normalization::UnicodeNormalization;
 
@@ -40,11 +44,17 @@ pub(crate) fn dummy_mnemonic_to_ed25_seed(mnemonic: &str, password: &str) -> ed2
 }
 
 pub(crate) fn dummy_derive_into_address(ed_priv: ed25519::Ed25519PrivateKey) -> String {
-    let pubkey = ed_priv.generate_public_key();
-    let pubkey_as_bytes_in_box: Box<[u8]> = Box::new(*pubkey.as_bytes());
-    let mut pubkey_as_bytes_in_vec: Vec<u8> = pubkey_as_bytes_in_box.into_vec();
+    let public_key = ed_priv.generate_public_key().to_bytes();
+    // Hash the public key to get the address
+    let mut hasher = VarBlake2b::new(32).unwrap();
+    hasher.update(public_key);
+    let mut result = vec![];
+    hasher.finalize_variable(|res| {
+        result = res.to_vec();
+    });
+
     let prefix: Vec<u8> = vec![1]; // prefix for ed25 addresses
     let mut data = prefix;
-    data.append(&mut pubkey_as_bytes_in_vec);
+    data.append(&mut result);
     bech32::encode("iota", data.to_base32()).unwrap()
 }

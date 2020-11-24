@@ -29,6 +29,7 @@ serde_json = "1.0"
 #temporary, only for development purpose
 tiny-bip39 = "0.7.3"
 hex = "0.4.2"
+blake2 = "0.9"
 
 unicode-normalization = "0.1.13"
 hmac = "0.7.1"
