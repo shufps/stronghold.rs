@@ -10,8 +10,8 @@ Use the following format:
 
 ```md
 ---
-"crypto.js": patch
-"iota_crypto": minor
+"stronghold-engine": patch
+"iota-stonghold": minor
 ---
 
 Change summary goes here
