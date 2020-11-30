@@ -17,7 +17,7 @@ jobs:
         os: [macos-latest]
     defaults:
       run:
-        working-directory: engine/examples/commandline
+        working-directory: products/commandline
 
     steps:
     - uses: actions/checkout@v2
@@ -75,7 +75,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: build
-        args: --manifest-path=engine/examples/commandline/Cargo.toml --release
+        args: --manifest-path=products/commandline/Cargo.toml --release
     
     - name: Import code signing assets (macOS)
       # Based on https://github.com/Apple-Actions/import-codesign-certs/blob/master/src/security.ts
@@ -109,11 +109,18 @@ jobs:
       # Run even if previous steps fail
       if: ${{ matrix.os == 'macos-latest' && always() }}
 
-    - name: Upload artifacts
+    - name: Upload artifacts (Windows/Linux)
       uses: actions/upload-artifact@v2
       with:
         name: stronghold-cli-${{ matrix.os }}
         path: |
-          engine/examples/commandline/target/release/stronghold
-          engine/examples/commandline/target/release/stronghold.exe
-          engine/examples/commandline/target/release/stronghold.zip
+          products/commandline/target/release/stronghold
+          products/commandline/target/release/stronghold.exe
+      if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest'
+    
+    - name: Upload artifacts (macOS)
+      uses: actions/upload-artifact@v2
+      with:
+        name: stronghold-cli-${{ matrix.os }}
+        path: products/commandline/stronghold.zip
+      if: matrix.os == 'macos-latest'
