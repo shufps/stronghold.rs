@@ -1,9 +1,9 @@
-name: version or publish
+name: status
 
 on:
-  push:
-    branches:
-      - dev
+  pull_request:
+    paths:
+    - '.changes/**.md'
 
 jobs:
   version-or-publish:
