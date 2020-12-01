@@ -1,9 +1,9 @@
 [package]
-name = "communication"
+name = "stronghold-communication"
 version = "0.1.0"
 authors = ["Elena Frank <elena.frank@iota.org>"]
 edition = "2018"
-license = "Apache-2.0 OR MIT"
+license = "Apache-2.0"
 readme = "README.md"
 
 [dependencies]
